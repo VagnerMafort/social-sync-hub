@@ -1,8 +1,14 @@
-import { Outlet } from 'react-router-dom';
+import { Outlet, Navigate } from 'react-router-dom';
 import { AppSidebar } from './AppSidebar';
 import { TopNav } from './TopNav';
 
 export function AppLayout() {
+  const token = localStorage.getItem('auth_token');
+
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+
   return (
     <div className="flex h-screen w-full overflow-hidden">
       <AppSidebar />
