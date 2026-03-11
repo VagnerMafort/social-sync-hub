@@ -1,24 +1,21 @@
 import { ChevronsUpDown, Plus, Check } from 'lucide-react';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAppStore } from '@/stores/app-store';
-import { mockWorkspaces } from '@/lib/mock-data';
+import { useWorkspaces } from '@/hooks/use-api';
 import { useEffect } from 'react';
 
 export function WorkspaceSwitcher() {
   const { currentWorkspace, setCurrentWorkspace, setWorkspaces, workspaces } = useAppStore();
+  const { data: fetchedWorkspaces } = useWorkspaces();
 
   useEffect(() => {
-    if (workspaces.length === 0) {
-      setWorkspaces(mockWorkspaces);
-      if (!currentWorkspace) setCurrentWorkspace(mockWorkspaces[0]);
+    if (fetchedWorkspaces && fetchedWorkspaces.length > 0) {
+      setWorkspaces(fetchedWorkspaces);
+      if (!currentWorkspace) setCurrentWorkspace(fetchedWorkspaces[0]);
     }
-  }, []);
+  }, [fetchedWorkspaces]);
 
   return (
     <DropdownMenu>
@@ -32,18 +29,13 @@ export function WorkspaceSwitcher() {
       <DropdownMenuContent className="w-56" align="start">
         {workspaces.map((ws) => (
           <DropdownMenuItem key={ws.id} onClick={() => setCurrentWorkspace(ws)} className="gap-2">
-            <div className="h-5 w-5 rounded text-[10px] font-bold flex items-center justify-center bg-secondary text-secondary-foreground">
-              {ws.name[0]}
-            </div>
+            <div className="h-5 w-5 rounded text-[10px] font-bold flex items-center justify-center bg-secondary text-secondary-foreground">{ws.name[0]}</div>
             <span className="truncate">{ws.name}</span>
             {currentWorkspace?.id === ws.id && <Check className="h-4 w-4 ml-auto text-primary" />}
           </DropdownMenuItem>
         ))}
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="gap-2 text-muted-foreground">
-          <Plus className="h-4 w-4" />
-          Create workspace
-        </DropdownMenuItem>
+        <DropdownMenuItem className="gap-2 text-muted-foreground"><Plus className="h-4 w-4" />Create workspace</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
