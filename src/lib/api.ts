@@ -1,6 +1,6 @@
 import type { Workspace, SocialAccount, MediaItem, ScheduledPost, QueueJob, AnalyticsData } from '@/types';
 
-const API_BASE = 'https://midias.grupomafort.com';
+const API_BASE = 'https://midias.grupomafort.com/api/v1';
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const token = localStorage.getItem('auth_token');
