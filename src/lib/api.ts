@@ -1,6 +1,6 @@
 import type { Workspace, SocialAccount, MediaItem, ScheduledPost, QueueJob, AnalyticsData } from '@/types';
 
-const API_BASE = import.meta.env.VITE_API_URL || '/api';
+const API_BASE = 'https://midias.grupomafort.com/api/v1';
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const token = localStorage.getItem('auth_token');
@@ -20,7 +20,6 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  // Auth
   auth: {
     login: (email: string, password: string) =>
       request<{ token: string; user: any }>('/auth/login', {
@@ -35,14 +34,12 @@ export const api = {
     me: () => request<{ user: any }>('/auth/me'),
   },
 
-  // Workspaces
   workspaces: {
     list: () => request<Workspace[]>('/workspaces'),
     create: (data: Partial<Workspace>) =>
       request<Workspace>('/workspaces', { method: 'POST', body: JSON.stringify(data) }),
   },
 
-  // Social Accounts
   accounts: {
     list: (workspaceId: string) =>
       request<SocialAccount[]>(`/accounts?workspace_id=${workspaceId}`),
@@ -55,7 +52,6 @@ export const api = {
       request<void>(`/accounts/${accountId}`, { method: 'DELETE' }),
   },
 
-  // Media
   media: {
     list: (workspaceId: string) =>
       request<MediaItem[]>(`/media?workspace_id=${workspaceId}`),
@@ -84,7 +80,6 @@ export const api = {
       request<void>(`/media/${mediaId}`, { method: 'DELETE' }),
   },
 
-  // Schedule
   schedule: {
     list: (workspaceId: string) =>
       request<ScheduledPost[]>(`/schedule?workspace_id=${workspaceId}`),
@@ -96,7 +91,6 @@ export const api = {
       request<void>(`/schedule/${id}`, { method: 'DELETE' }),
   },
 
-  // Queue
   queue: {
     list: (workspaceId: string) =>
       request<QueueJob[]>(`/queue?workspace_id=${workspaceId}`),
@@ -104,7 +98,6 @@ export const api = {
       request<QueueJob>(`/queue/${jobId}/retry`, { method: 'POST' }),
   },
 
-  // Analytics
   analytics: {
     get: (workspaceId: string, period?: string) =>
       request<AnalyticsData>(`/analytics?workspace_id=${workspaceId}&period=${period || '30d'}`),

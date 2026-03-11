@@ -1,4 +1,4 @@
-import { mockAnalytics } from '@/lib/mock-data';
+import { useAnalytics } from '@/hooks/use-api';
 import { PlatformIcon, platformLabel } from '@/components/PlatformIcon';
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell,
@@ -8,7 +8,13 @@ import { format } from 'date-fns';
 const COLORS = ['hsl(0, 100%, 50%)', 'hsl(326, 78%, 55%)', 'hsl(0, 0%, 30%)'];
 
 export default function AnalyticsPage() {
-  const { platform_breakdown, daily_posts, total_views, total_engagement, engagement_rate } = mockAnalytics;
+  const { data: analytics } = useAnalytics();
+
+  if (!analytics) {
+    return <div className="flex items-center justify-center h-64 text-muted-foreground">Loading…</div>;
+  }
+
+  const { platform_breakdown, daily_posts, total_views, total_engagement, engagement_rate } = analytics;
 
   const pieData = platform_breakdown.map((p) => ({
     name: platformLabel(p.platform),
@@ -23,7 +29,6 @@ export default function AnalyticsPage() {
         <p className="text-sm text-muted-foreground">Performance metrics across all platforms</p>
       </div>
 
-      {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="card-elevated p-5">
           <p className="text-sm text-muted-foreground">Total Views</p>
@@ -40,7 +45,6 @@ export default function AnalyticsPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Daily Posts Line Chart */}
         <div className="lg:col-span-2 card-elevated p-5">
           <h3 className="text-sm font-semibold text-foreground mb-4">Daily Activity (30 days)</h3>
           <ResponsiveContainer width="100%" height={280}>
@@ -54,15 +58,12 @@ export default function AnalyticsPage() {
           </ResponsiveContainer>
         </div>
 
-        {/* Pie Chart */}
         <div className="card-elevated p-5">
           <h3 className="text-sm font-semibold text-foreground mb-4">Views by Platform</h3>
           <ResponsiveContainer width="100%" height={220}>
             <PieChart>
               <Pie data={pieData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={5} dataKey="value">
-                {pieData.map((_, i) => (
-                  <Cell key={i} fill={COLORS[i]} />
-                ))}
+                {pieData.map((_, i) => <Cell key={i} fill={COLORS[i]} />)}
               </Pie>
               <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }} />
             </PieChart>
@@ -80,7 +81,6 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      {/* Engagement by Platform */}
       <div className="card-elevated p-5">
         <h3 className="text-sm font-semibold text-foreground mb-4">Engagement by Platform</h3>
         <ResponsiveContainer width="100%" height={240}>

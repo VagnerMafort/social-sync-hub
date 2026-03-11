@@ -11,6 +11,7 @@ import { useEffect } from 'react';
 import { MobileSidebarTrigger } from './AppSidebar';
 import { cn } from '@/lib/utils';
 
+
 export function TopNav() {
   const { darkMode, toggleDarkMode, notifications, setNotifications } = useAppStore();
   const unreadCount = notifications.filter((n) => !n.read).length;
