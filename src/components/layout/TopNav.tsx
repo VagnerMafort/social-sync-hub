@@ -1,24 +1,32 @@
-import { Bell, Moon, Sun, Search } from 'lucide-react';
+import { Bell, Moon, Sun, Search, LogOut } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAppStore } from '@/stores/app-store';
 import { mockNotifications } from '@/lib/mock-data';
 import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { MobileSidebarTrigger } from './AppSidebar';
 import { cn } from '@/lib/utils';
 
 
 export function TopNav() {
-  const { darkMode, toggleDarkMode, notifications, setNotifications } = useAppStore();
+  const { darkMode, toggleDarkMode, notifications, setNotifications, user, logout } = useAppStore();
+  const navigate = useNavigate();
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   useEffect(() => {
     if (notifications.length === 0) setNotifications(mockNotifications);
   }, []);
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   return (
     <header className="h-14 border-b bg-card flex items-center px-4 gap-3 shrink-0">
@@ -72,9 +80,26 @@ export function TopNav() {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold ml-1">
-          U
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger className="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold ml-1 cursor-pointer hover:opacity-90 transition-opacity">
+            {user?.full_name?.charAt(0)?.toUpperCase() || 'U'}
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            {user?.full_name && (
+              <>
+                <div className="px-3 py-2">
+                  <p className="text-sm font-medium">{user.full_name}</p>
+                  <p className="text-xs text-muted-foreground">{user.email}</p>
+                </div>
+                <DropdownMenuSeparator />
+              </>
+            )}
+            <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive cursor-pointer">
+              <LogOut className="h-4 w-4 mr-2" />
+              Sair
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   );
