@@ -39,13 +39,8 @@ export default function LoginPage() {
       setNotifications(mockNotifications);
       navigate('/');
     } catch (err: any) {
-      // Fallback to mock login
-      toast.error('API indisponível. Usando dados de demonstração.');
-      setUser({ id: 'user-1', email, full_name: 'Demo User' });
-      setWorkspaces(mockWorkspaces);
-      setCurrentWorkspace(mockWorkspaces[0]);
-      setNotifications(mockNotifications);
-      navigate('/');
+      const message = err?.message || 'Falha no login';
+      toast.error(message);
     } finally {
       setLoading(false);
     }
