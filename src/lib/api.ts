@@ -1,115 +1,235 @@
+import { mySupabase } from '@/lib/supabase-client';
 import type { Workspace, SocialAccount, MediaItem, ScheduledPost, QueueJob, AnalyticsData } from '@/types';
 
-const API_BASE = 'https://midias.grupomafort.com/api/v1';
-
-async function request<T>(path: string, options?: RequestInit & { workspaceId?: string }): Promise<T> {
-  const token = localStorage.getItem('auth_token');
-  const { workspaceId, ...fetchOptions } = options || {};
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(workspaceId ? { 'x-workspace-id': workspaceId } : {}),
-    ...(fetchOptions?.headers as Record<string, string> || {}),
-  };
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...fetchOptions,
-    headers,
-  });
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({ message: res.statusText }));
-    // Token expirado ou inválido — limpar sessão e redirecionar
-    if (res.status === 401 && !path.startsWith('/auth/')) {
-      localStorage.removeItem('auth_token');
-      window.location.href = '/login';
-      throw new Error('Sessão expirada. Faça login novamente.');
-    }
-    throw new Error(error.message || 'Erro na API');
-  }
-  return res.json();
-}
-
+// ── Auth ──────────────────────────────────────────────────────────
 export const api = {
   auth: {
-    login: (email: string, password: string) =>
-      request<{ token: string; user: any }>('/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ email, password }),
-      }),
-    signup: (email: string, password: string, full_name: string) =>
-      request<{ token: string; user: any }>('/auth/signup', {
-        method: 'POST',
-        body: JSON.stringify({ email, password, full_name }),
-      }),
-    me: () => request<{ user: any }>('/auth/me'),
-  },
-
-  workspaces: {
-    list: () => request<{ items: Workspace[] }>('/workspaces').then(r => r.items),
-    create: (data: Partial<Workspace>) =>
-      request<Workspace>('/workspaces', { method: 'POST', body: JSON.stringify(data) }),
-  },
-
-  accounts: {
-    list: (workspaceId: string) =>
-      request<{ items: SocialAccount[] }>(`/accounts?workspace_id=${workspaceId}`).then(r => r.items),
-    connect: (workspaceId: string, platform: string) =>
-      request<{ provider: string; oauth_url: string }>(`/accounts/connect`, {
-        method: 'POST',
-        body: JSON.stringify({ provider: platform }),
-        workspaceId,
-      }),
-    disconnect: (accountId: string) =>
-      request<void>(`/accounts/${accountId}`, { method: 'DELETE' }),
-  },
-
-  media: {
-    list: (workspaceId: string) =>
-      request<{ items: MediaItem[] }>(`/media?workspace_id=${workspaceId}`).then(r => r.items),
-    upload: async (workspaceId: string, file: File, onProgress?: (p: number) => void) => {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('workspace_id', workspaceId);
-
-      return new Promise<MediaItem>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open('POST', `${API_BASE}/media/upload`);
-        const token = localStorage.getItem('auth_token');
-        if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-        xhr.upload.onprogress = (e) => {
-          if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100));
-        };
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) resolve(JSON.parse(xhr.responseText));
-          else reject(new Error('Upload failed'));
-        };
-        xhr.onerror = () => reject(new Error('Upload failed'));
-        xhr.send(formData);
-      });
+    login: async (email: string, password: string) => {
+      const { data, error } = await mySupabase.auth.signInWithPassword({ email, password });
+      if (error) throw new Error(error.message);
+      return {
+        token: data.session?.access_token ?? '',
+        user: {
+          id: data.user.id,
+          email: data.user.email ?? '',
+          full_name: data.user.user_metadata?.full_name ?? data.user.email?.split('@')[0] ?? '',
+          avatar_url: data.user.user_metadata?.avatar_url,
+        },
+      };
     },
-    delete: (mediaId: string) =>
-      request<void>(`/media/${mediaId}`, { method: 'DELETE' }),
+    signup: async (email: string, password: string, full_name: string) => {
+      const { data, error } = await mySupabase.auth.signUp({
+        email,
+        password,
+        options: { data: { full_name } },
+      });
+      if (error) throw new Error(error.message);
+      if (!data.user) throw new Error('Verifique seu email para confirmar o cadastro.');
+      return {
+        token: data.session?.access_token ?? '',
+        user: {
+          id: data.user.id,
+          email: data.user.email ?? '',
+          full_name,
+        },
+      };
+    },
+    me: async () => {
+      const { data, error } = await mySupabase.auth.getUser();
+      if (error) throw error;
+      return {
+        user: {
+          id: data.user.id,
+          email: data.user.email ?? '',
+          full_name: data.user.user_metadata?.full_name ?? '',
+          avatar_url: data.user.user_metadata?.avatar_url,
+        },
+      };
+    },
+    logout: async () => {
+      await mySupabase.auth.signOut();
+    },
   },
 
+  // ── Workspaces ────────────────────────────────────────────────────
+  workspaces: {
+    list: async (): Promise<Workspace[]> => {
+      const { data, error } = await mySupabase
+        .from('workspaces')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw new Error(error.message);
+      return (data ?? []) as unknown as Workspace[];
+    },
+    create: async (ws: Partial<Workspace>): Promise<Workspace> => {
+      const { data: { user } } = await mySupabase.auth.getUser();
+      const { data, error } = await mySupabase
+        .from('workspaces')
+        .insert({ name: ws.name, slug: ws.slug, owner_id: user?.id })
+        .select()
+        .single();
+      if (error) throw new Error(error.message);
+      return data as unknown as Workspace;
+    },
+  },
+
+  // ── Social Accounts ──────────────────────────────────────────────
+  accounts: {
+    list: async (workspaceId: string): Promise<SocialAccount[]> => {
+      const { data, error } = await mySupabase
+        .from('social_accounts')
+        .select('*')
+        .eq('workspace_id', workspaceId);
+      if (error) throw new Error(error.message);
+      return (data ?? []).map((a: any) => ({
+        id: a.id,
+        workspace_id: a.workspace_id,
+        platform: a.platform,
+        platform_username: a.account_name ?? a.platform_account_id ?? '',
+        platform_avatar: a.account_avatar_url,
+        status: a.status as any,
+        connected_at: a.created_at,
+      }));
+    },
+    connect: async (workspaceId: string, platform: string) => {
+      // Uses the existing oauth-initiate edge function on Lovable Cloud
+      const { data: { session } } = await mySupabase.auth.getSession();
+      const res = await fetch(
+        `https://kxtirluaooyvoqqneucu.supabase.co/functions/v1/oauth-initiate`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({
+            platform,
+            workspace_id: workspaceId,
+            redirect_uri: `${window.location.origin}/accounts`,
+          }),
+        }
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to initiate OAuth');
+      }
+      return res.json();
+    },
+    disconnect: async (accountId: string) => {
+      const { error } = await mySupabase
+        .from('social_accounts')
+        .delete()
+        .eq('id', accountId);
+      if (error) throw new Error(error.message);
+    },
+  },
+
+  // ── Media ─────────────────────────────────────────────────────────
+  media: {
+    list: async (workspaceId: string): Promise<MediaItem[]> => {
+      const { data, error } = await mySupabase
+        .from('media')
+        .select('*')
+        .eq('workspace_id', workspaceId)
+        .order('created_at', { ascending: false });
+      if (error) throw new Error(error.message);
+      return (data ?? []) as unknown as MediaItem[];
+    },
+    upload: async (workspaceId: string, file: File, _onProgress?: (p: number) => void): Promise<MediaItem> => {
+      const path = `${workspaceId}/${Date.now()}_${file.name}`;
+      const { error: uploadError } = await mySupabase.storage
+        .from('media')
+        .upload(path, file);
+      if (uploadError) throw new Error(uploadError.message);
+
+      const { data: { publicUrl } } = mySupabase.storage.from('media').getPublicUrl(path);
+
+      const { data, error } = await mySupabase
+        .from('media')
+        .insert({
+          workspace_id: workspaceId,
+          filename: file.name,
+          url: publicUrl,
+          type: file.type.startsWith('video') ? 'video' : 'image',
+          size: file.size,
+          status: 'ready',
+        })
+        .select()
+        .single();
+      if (error) throw new Error(error.message);
+      return data as unknown as MediaItem;
+    },
+    delete: async (mediaId: string) => {
+      const { error } = await mySupabase.from('media').delete().eq('id', mediaId);
+      if (error) throw new Error(error.message);
+    },
+  },
+
+  // ── Schedule ──────────────────────────────────────────────────────
   schedule: {
-    list: (workspaceId: string) =>
-      request<{ items: ScheduledPost[] }>(`/schedule?workspace_id=${workspaceId}`).then(r => r.items),
-    create: (data: Partial<ScheduledPost>) =>
-      request<ScheduledPost>('/schedule', { method: 'POST', body: JSON.stringify(data) }),
-    update: (id: string, data: Partial<ScheduledPost>) =>
-      request<ScheduledPost>(`/schedule/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-    delete: (id: string) =>
-      request<void>(`/schedule/${id}`, { method: 'DELETE' }),
+    list: async (workspaceId: string): Promise<ScheduledPost[]> => {
+      const { data, error } = await mySupabase
+        .from('scheduled_posts')
+        .select('*')
+        .eq('workspace_id', workspaceId)
+        .order('scheduled_at', { ascending: true });
+      if (error) throw new Error(error.message);
+      return (data ?? []) as unknown as ScheduledPost[];
+    },
+    create: async (post: Partial<ScheduledPost>): Promise<ScheduledPost> => {
+      const { data, error } = await mySupabase
+        .from('scheduled_posts')
+        .insert(post)
+        .select()
+        .single();
+      if (error) throw new Error(error.message);
+      return data as unknown as ScheduledPost;
+    },
+    update: async (id: string, post: Partial<ScheduledPost>): Promise<ScheduledPost> => {
+      const { data, error } = await mySupabase
+        .from('scheduled_posts')
+        .update(post)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw new Error(error.message);
+      return data as unknown as ScheduledPost;
+    },
+    delete: async (id: string) => {
+      const { error } = await mySupabase.from('scheduled_posts').delete().eq('id', id);
+      if (error) throw new Error(error.message);
+    },
   },
 
+  // ── Queue ─────────────────────────────────────────────────────────
   queue: {
-    list: (workspaceId: string) =>
-      request<{ items: QueueJob[] }>(`/queue?workspace_id=${workspaceId}`).then(r => r.items),
-    retry: (jobId: string) =>
-      request<QueueJob>(`/queue/${jobId}/retry`, { method: 'POST' }),
+    list: async (workspaceId: string): Promise<QueueJob[]> => {
+      const { data, error } = await mySupabase
+        .from('queue_jobs')
+        .select('*')
+        .eq('workspace_id', workspaceId)
+        .order('created_at', { ascending: false });
+      if (error) throw new Error(error.message);
+      return (data ?? []) as unknown as QueueJob[];
+    },
+    retry: async (jobId: string): Promise<QueueJob> => {
+      const { data, error } = await mySupabase
+        .from('queue_jobs')
+        .update({ status: 'pending', attempts: 0 })
+        .eq('id', jobId)
+        .select()
+        .single();
+      if (error) throw new Error(error.message);
+      return data as unknown as QueueJob;
+    },
   },
 
+  // ── Analytics (mock for now — no analytics table yet) ─────────────
   analytics: {
-    get: (workspaceId: string, period?: string) =>
-      request<AnalyticsData>(`/analytics?workspace_id=${workspaceId}&period=${period || '30d'}`),
+    get: async (_workspaceId: string, _period?: string): Promise<AnalyticsData> => {
+      // Will be replaced when analytics table exists in your Supabase
+      const { mockAnalytics } = await import('@/lib/mock-data');
+      return mockAnalytics;
+    },
   },
 };

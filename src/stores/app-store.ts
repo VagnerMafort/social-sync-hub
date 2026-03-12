@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Workspace, User, Notification } from '@/types';
+import { mySupabase } from '@/lib/supabase-client';
 
 interface AppState {
   user: User | null;
@@ -49,8 +50,8 @@ export const useAppStore = create<AppState>()(
           document.documentElement.classList.toggle('dark', newMode);
           return { darkMode: newMode };
         }),
-      logout: () => {
-        localStorage.removeItem('auth_token');
+      logout: async () => {
+        await mySupabase.auth.signOut();
         set({ user: null, currentWorkspace: null, workspaces: [] });
       },
     }),
