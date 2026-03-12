@@ -34,8 +34,8 @@ export default function AccountsPage() {
     setConnecting(platform);
     try {
       const data = await api.accounts.connect(currentWorkspace.id, platform);
-      // Redirect to OAuth provider
-      window.location.href = data.oauth_url;
+      // Open OAuth URL in a new tab (preview iframe blocks external redirects)
+      window.open(data.oauth_url, '_blank');
     } catch (error: any) {
       console.error('OAuth error:', error);
       toast.error(error.message || 'Failed to connect account');
