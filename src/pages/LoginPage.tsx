@@ -6,7 +6,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAppStore } from '@/stores/app-store';
 import { api } from '@/lib/api';
-import { mockWorkspaces, mockNotifications } from '@/lib/mock-data';
 import { toast } from 'sonner';
 
 export default function LoginPage() {
@@ -16,7 +15,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { setUser, setWorkspaces, setCurrentWorkspace, setNotifications } = useAppStore();
+  const { setUser, setWorkspaces, setCurrentWorkspace } = useAppStore();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,21 +25,27 @@ export default function LoginPage() {
         ? () => api.auth.login(email, password)
         : () => api.auth.signup(email, password, email.split('@')[0]);
       const result = await authFn();
-      localStorage.setItem('auth_token', result.token);
+
+      if (!result.token && !isLogin) {
+        toast.success('Cadastro realizado! Verifique seu email para confirmar.');
+        setLoading(false);
+        return;
+      }
+
       setUser(result.user);
+
       try {
         const workspaces = await api.workspaces.list();
         setWorkspaces(workspaces);
         if (workspaces.length > 0) setCurrentWorkspace(workspaces[0]);
       } catch {
-        setWorkspaces(mockWorkspaces);
-        setCurrentWorkspace(mockWorkspaces[0]);
+        // No workspaces yet — that's ok
+        setWorkspaces([]);
       }
-      setNotifications(mockNotifications);
+
       navigate('/');
     } catch (err: any) {
-      const message = err?.message || 'Falha no login';
-      toast.error(message);
+      toast.error(err?.message || 'Falha na autenticação');
     } finally {
       setLoading(false);
     }
