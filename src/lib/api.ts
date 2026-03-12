@@ -35,7 +35,7 @@ export const api = {
   },
 
   workspaces: {
-    list: () => request<Workspace[]>('/workspaces'),
+    list: () => request<{ items: Workspace[] }>('/workspaces').then(r => r.items),
     create: (data: Partial<Workspace>) =>
       request<Workspace>('/workspaces', { method: 'POST', body: JSON.stringify(data) }),
   },
