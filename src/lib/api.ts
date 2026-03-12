@@ -42,7 +42,7 @@ export const api = {
 
   accounts: {
     list: (workspaceId: string) =>
-      request<SocialAccount[]>(`/accounts?workspace_id=${workspaceId}`),
+      request<{ items: SocialAccount[] }>(`/accounts?workspace_id=${workspaceId}`).then(r => r.items),
     connect: (workspaceId: string, platform: string) =>
       request<{ oauth_url: string }>(`/accounts/connect`, {
         method: 'POST',
