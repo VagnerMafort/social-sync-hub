@@ -17,7 +17,13 @@ async function request<T>(path: string, options?: RequestInit & { workspaceId?: 
   });
   if (!res.ok) {
     const error = await res.json().catch(() => ({ message: res.statusText }));
-    throw new Error(error.message || 'API Error');
+    // Token expirado ou inválido — limpar sessão e redirecionar
+    if (res.status === 401 && !path.startsWith('/auth/')) {
+      localStorage.removeItem('auth_token');
+      window.location.href = '/login';
+      throw new Error('Sessão expirada. Faça login novamente.');
+    }
+    throw new Error(error.message || 'Erro na API');
   }
   return res.json();
 }
