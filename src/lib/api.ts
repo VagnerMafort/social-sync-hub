@@ -93,7 +93,7 @@ export const api = {
 
   queue: {
     list: (workspaceId: string) =>
-      request<QueueJob[]>(`/queue?workspace_id=${workspaceId}`),
+      request<{ items: QueueJob[] }>(`/queue?workspace_id=${workspaceId}`).then(r => r.items),
     retry: (jobId: string) =>
       request<QueueJob>(`/queue/${jobId}/retry`, { method: 'POST' }),
   },
