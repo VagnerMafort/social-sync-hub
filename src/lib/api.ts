@@ -92,20 +92,15 @@ export const api = {
       }));
     },
     connect: async (workspaceId: string, platform: string) => {
-      // Uses the VPS backend OAuth routes
-      const platformMap: Record<string, string> = {
-        instagram: 'meta',
-        facebook: 'meta',
-        youtube: 'youtube',
-        tiktok: 'tiktok',
-      };
-      const oauthPlatform = platformMap[platform] || platform;
+      // Uses Edge Function on external Supabase
+      const { data: { session } } = await mySupabase.auth.getSession();
       const res = await fetch(
-        `https://midias.grupomafort.com/api/v1/oauth/${oauthPlatform}/start`,
+        `https://yvkekhjsfgyojmnwpknh.supabase.co/functions/v1/oauth-initiate`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            Authorization: `Bearer ${session?.access_token}`,
           },
           body: JSON.stringify({
             platform,
