@@ -82,7 +82,7 @@ export const api = {
 
   schedule: {
     list: (workspaceId: string) =>
-      request<ScheduledPost[]>(`/schedule?workspace_id=${workspaceId}`),
+      request<{ items: ScheduledPost[] }>(`/schedule?workspace_id=${workspaceId}`).then(r => r.items),
     create: (data: Partial<ScheduledPost>) =>
       request<ScheduledPost>('/schedule', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: Partial<ScheduledPost>) =>
