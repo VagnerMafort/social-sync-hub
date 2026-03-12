@@ -92,15 +92,20 @@ export const api = {
       }));
     },
     connect: async (workspaceId: string, platform: string) => {
-      // Uses the existing oauth-initiate edge function on Lovable Cloud
-      const { data: { session } } = await mySupabase.auth.getSession();
+      // Uses the VPS backend OAuth routes
+      const platformMap: Record<string, string> = {
+        instagram: 'meta',
+        facebook: 'meta',
+        youtube: 'youtube',
+        tiktok: 'tiktok',
+      };
+      const oauthPlatform = platformMap[platform] || platform;
       const res = await fetch(
-        `https://kxtirluaooyvoqqneucu.supabase.co/functions/v1/oauth-initiate`,
+        `https://midias.grupomafort.com/api/v1/oauth/${oauthPlatform}/start`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${session?.access_token}`,
           },
           body: JSON.stringify({
             platform,
