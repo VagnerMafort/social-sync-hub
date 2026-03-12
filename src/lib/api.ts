@@ -47,9 +47,10 @@ export const api = {
     list: (workspaceId: string) =>
       request<{ items: SocialAccount[] }>(`/accounts?workspace_id=${workspaceId}`).then(r => r.items),
     connect: (workspaceId: string, platform: string) =>
-      request<{ oauth_url: string }>(`/oauth/initiate`, {
+      request<{ provider: string; oauth_url: string }>(`/accounts/connect`, {
         method: 'POST',
-        body: JSON.stringify({ workspace_id: workspaceId, provider: platform }),
+        body: JSON.stringify({ provider: platform }),
+        workspaceId,
       }),
     disconnect: (accountId: string) =>
       request<void>(`/accounts/${accountId}`, { method: 'DELETE' }),
