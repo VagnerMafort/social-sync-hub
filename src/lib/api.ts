@@ -35,14 +35,14 @@ export const api = {
   },
 
   workspaces: {
-    list: () => request<Workspace[]>('/workspaces'),
+    list: () => request<{ items: Workspace[] }>('/workspaces').then(r => r.items),
     create: (data: Partial<Workspace>) =>
       request<Workspace>('/workspaces', { method: 'POST', body: JSON.stringify(data) }),
   },
 
   accounts: {
     list: (workspaceId: string) =>
-      request<SocialAccount[]>(`/accounts?workspace_id=${workspaceId}`),
+      request<{ items: SocialAccount[] }>(`/accounts?workspace_id=${workspaceId}`).then(r => r.items),
     connect: (workspaceId: string, platform: string) =>
       request<{ oauth_url: string }>(`/accounts/connect`, {
         method: 'POST',
@@ -54,7 +54,7 @@ export const api = {
 
   media: {
     list: (workspaceId: string) =>
-      request<MediaItem[]>(`/media?workspace_id=${workspaceId}`),
+      request<{ items: MediaItem[] }>(`/media?workspace_id=${workspaceId}`).then(r => r.items),
     upload: async (workspaceId: string, file: File, onProgress?: (p: number) => void) => {
       const formData = new FormData();
       formData.append('file', file);
@@ -82,7 +82,7 @@ export const api = {
 
   schedule: {
     list: (workspaceId: string) =>
-      request<ScheduledPost[]>(`/schedule?workspace_id=${workspaceId}`),
+      request<{ items: ScheduledPost[] }>(`/schedule?workspace_id=${workspaceId}`).then(r => r.items),
     create: (data: Partial<ScheduledPost>) =>
       request<ScheduledPost>('/schedule', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: Partial<ScheduledPost>) =>
@@ -93,7 +93,7 @@ export const api = {
 
   queue: {
     list: (workspaceId: string) =>
-      request<QueueJob[]>(`/queue?workspace_id=${workspaceId}`),
+      request<{ items: QueueJob[] }>(`/queue?workspace_id=${workspaceId}`).then(r => r.items),
     retry: (jobId: string) =>
       request<QueueJob>(`/queue/${jobId}/retry`, { method: 'POST' }),
   },
