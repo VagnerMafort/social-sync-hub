@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, RefreshCw, Trash2, ExternalLink, CheckCircle2, AlertCircle, XCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -6,7 +6,7 @@ import { useAccounts, useDisconnectAccount } from '@/hooks/use-api';
 import { PlatformIcon, platformLabel } from '@/components/PlatformIcon';
 import { accountStatusChipClass } from '@/lib/helpers';
 import { useAppStore } from '@/stores/app-store';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { toast } from 'sonner';
 import type { Platform } from '@/types';
 
@@ -33,30 +33,7 @@ export default function AccountsPage() {
 
     setConnecting(platform);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast.error('Please log in first');
-        return;
-      }
-
-      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-      const res = await fetch(`https://${projectId}.supabase.co/functions/v1/oauth-initiate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-        },
-        body: JSON.stringify({
-          platform,
-          workspace_id: currentWorkspace.id,
-          redirect_uri: window.location.origin + '/accounts',
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to initiate OAuth');
-
+      const data = await api.accounts.connect(currentWorkspace.id, platform);
       // Redirect to OAuth provider
       window.location.href = data.oauth_url;
     } catch (error: any) {
@@ -68,15 +45,19 @@ export default function AccountsPage() {
   };
 
   // Check for OAuth callback result
-  useState(() => {
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('oauth') === 'success') {
       const platform = params.get('platform');
       toast.success(`${platform ? platformLabel(platform as Platform) : 'Account'} connected successfully!`);
       window.history.replaceState({}, '', '/accounts');
       refetch();
+    } else if (params.get('oauth') === 'error') {
+      const msg = params.get('message') || 'OAuth failed';
+      toast.error(msg);
+      window.history.replaceState({}, '', '/accounts');
     }
-  });
+  }, [refetch]);
 
   const grouped = platformConfigs.map((pc) => ({
     ...pc,
