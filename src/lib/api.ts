@@ -54,7 +54,7 @@ export const api = {
 
   media: {
     list: (workspaceId: string) =>
-      request<MediaItem[]>(`/media?workspace_id=${workspaceId}`),
+      request<{ items: MediaItem[] }>(`/media?workspace_id=${workspaceId}`).then(r => r.items),
     upload: async (workspaceId: string, file: File, onProgress?: (p: number) => void) => {
       const formData = new FormData();
       formData.append('file', file);
