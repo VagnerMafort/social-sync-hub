@@ -2,15 +2,18 @@ import type { Workspace, SocialAccount, MediaItem, ScheduledPost, QueueJob, Anal
 
 const API_BASE = 'https://midias.grupomafort.com/api/v1';
 
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
+async function request<T>(path: string, options?: RequestInit & { workspaceId?: string }): Promise<T> {
   const token = localStorage.getItem('auth_token');
+  const { workspaceId, ...fetchOptions } = options || {};
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(workspaceId ? { 'x-workspace-id': workspaceId } : {}),
+    ...(fetchOptions?.headers as Record<string, string> || {}),
+  };
   const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options?.headers,
-    },
+    ...fetchOptions,
+    headers,
   });
   if (!res.ok) {
     const error = await res.json().catch(() => ({ message: res.statusText }));
@@ -44,9 +47,10 @@ export const api = {
     list: (workspaceId: string) =>
       request<{ items: SocialAccount[] }>(`/accounts?workspace_id=${workspaceId}`).then(r => r.items),
     connect: (workspaceId: string, platform: string) =>
-      request<{ oauth_url: string }>(`/oauth/initiate`, {
+      request<{ provider: string; oauth_url: string }>(`/accounts/connect`, {
         method: 'POST',
-        body: JSON.stringify({ workspace_id: workspaceId, provider: platform }),
+        body: JSON.stringify({ provider: platform }),
+        workspaceId,
       }),
     disconnect: (accountId: string) =>
       request<void>(`/accounts/${accountId}`, { method: 'DELETE' }),
